@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Sample Application - Deployed to target region (us-west-1 for testing)'
+Description: 'Sample Application - Deployed to target region (us-west-1 for testing, us-gov-west-1 for production)'
 
 Parameters:
   Environment:
@@ -62,32 +62,17 @@ Resources:
       Roles:
         - !Ref EC2Role
 
-  # Sample Security Group
-  AppSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
+  # Sample SNS Topic (simpler than Security Group for testing)
+  AppNotificationTopic:
+    Type: AWS::SNS::Topic
     Properties:
-      GroupName: !Sub 'sample-app-sg-${Environment}'
-      GroupDescription: 'Security group for sample application'
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-          Description: 'HTTP access'
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
-          Description: 'HTTPS access'
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-          Description: 'Allow all outbound'
+      TopicName: !Sub 'sample-app-notifications-${Environment}'
+      DisplayName: !Sub 'Sample App Notifications - ${Environment}'
       Tags:
         - Key: Environment
           Value: !Ref Environment
-        - Key: Name
-          Value: !Sub 'sample-app-sg-${Environment}'
+        - Key: ManagedBy
+          Value: CloudFormation
 
 Outputs:
   BucketName:
@@ -108,11 +93,11 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-EC2RoleArn'
   
-  SecurityGroupId:
-    Description: 'Security Group ID'
-    Value: !Ref AppSecurityGroup
+  NotificationTopicArn:
+    Description: 'SNS Topic ARN for notifications'
+    Value: !Ref AppNotificationTopic
     Export:
-      Name: !Sub '${AWS::StackName}-SecurityGroupId'
+      Name: !Sub '${AWS::StackName}-NotificationTopicArn'
   
   Environment:
     Description: 'Environment name'
