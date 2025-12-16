@@ -1,0 +1,46 @@
+name: Deploy to S3 for CodePipeline
+
+# Trigger on push to main branch
+on:
+  push:
+    branches:
+      - main
+
+# Required permissions for OIDC authentication
+permissions:
+  id-token: write  # Required to request OIDC token
+  contents: read   # Required to checkout code
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws-us-gov:iam::514397112278:role/project/project-github-actions-deploy-role
+          aws-region: us-gov-west-1
+          # Optional: specify role session name for audit trail
+          role-session-name: GitHubActions-${{ github.repository }}-${{ github.run_id }}
+      
+      - name: Package source code
+        run: |
+          # Create zip excluding .git directory and GitHub Actions workflows
+          zip -r source.zip . -x "*.git*" ".github/*"
+          echo "Package size: $(du -h source.zip | cut -f1)"
+      
+      - name: Upload to S3
+        run: |
+          # Upload to S3 with metadata
+          aws s3 cp source.zip \
+            s3://BUCKET_NAME/ORG-REPO/main/latest.zip \
+            --metadata "commit-sha=${{ github.sha }},branch=${{ github.ref_name }},actor=${{ github.actor }}"
+          
+          echo "✅ Uploaded to S3: s3://BUCKET_NAME/ORG-REPO/main/latest.zip"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Triggered by: ${{ github.actor }}"
